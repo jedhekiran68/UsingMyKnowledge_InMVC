@@ -1,0 +1,148 @@
+﻿@{
+    ViewBag.Title = "Category List";
+}
+
+<h2>Add Category</h2>
+
+<div class="form-group">
+    <label for="CategoryName">Category Name</label>
+    <input type="hidden" id="CategoryId" />
+    <input type="text" class="form-control" id="CategoryName" name="CategoryName" required />
+</div>
+<button type="button" id="btnSaveCategory" class="btn btn-primary">Save</button>
+@Html.ActionLink("View ProductList", "Index", "Home", null, new { @class = "btn btn-secondary" })
+
+<h3>Categories</h3>
+<div id="categoryList">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Category Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (ViewBag.CategoryList != null && ViewBag.CategoryList.Count > 0)
+            {
+                foreach (var category in ViewBag.CategoryList as List<MachinTest_2WAY.Models.TblCategoryList>)
+                {
+                    <tr id="category-@category.categoryId">
+                        <td>@category.CategoryName</td>
+                        <td>
+                            <button type="button" class="btn btn-warning btn-sm edit-category" data-id="@category.categoryId" data-name="@category.CategoryName">Edit</button>
+                            <button type="button" class="btn btn-danger btn-sm delete-category" data-id="@category.categoryId">Delete</button>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="2">No categories available.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        let isEditMode = false;
+
+        $('#btnSaveCategory').on('click', function () {
+            let categoryName = $('#CategoryName').val().trim();
+            let categoryId = $('#CategoryId').val();
+
+            if (categoryName === '') {
+                alert("Category Name is required.");
+                return;
+            }
+
+            let data = JSON.stringify({
+                CategoryName: categoryName,
+                categoryId: categoryId ? parseInt(categoryId) : 0
+            });
+
+            $.ajax({
+                type: "POST",
+                url: categoryId ? '@Url.Action("UpdateCategory", "Home")' : '@Url.Action("AddCategory", "Home")',
+                data: data,
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function (result) {
+                    if (result.success) {
+                        alert(isEditMode ? "Category updated successfully!" : "Category added successfully!");
+                        $('#CategoryName').val('');
+                        $('#CategoryId').val('');
+                        isEditMode = false;
+                        loadCategoryList();
+                    } else {
+                        alert("Failed to save category. Please try again.");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error: " + xhr.responseText);
+                    alert("An error occurred while saving the category.");
+                }
+            });
+        });
+
+        function loadCategoryList() {
+            $.ajax({
+                url: '@Url.Action("GetCategories", "Home")',
+                type: "GET",
+                success: function (data) {
+                    var categoryListHtml = "";
+                    if (data.length > 0) {
+                        $.each(data, function (index, category) {
+                            categoryListHtml += "<tr id='category-" + category.categoryId + "'>" +
+                                "<td>" + category.CategoryName + "</td>" +
+                                "<td>" +
+                                "<button type='button' class='btn btn-warning btn-sm edit-category' data-id='" + category.categoryId + "' data-name='" + category.CategoryName + "'>Edit</button> " +
+                                "<button type='button' class='btn btn-danger btn-sm delete-category' data-id='" + category.categoryId + "'>Delete</button>" +
+                                "</td>" +
+                                "</tr>";
+                        });
+                    } else {
+                        categoryListHtml = "<tr><td colspan='2'>No categories available.</td></tr>";
+                    }
+                    $('#categoryList table tbody').html(categoryListHtml);
+
+                    $('.edit-category').on('click', function () {
+                        $('#CategoryName').val($(this).data('name'));
+                        $('#CategoryId').val($(this).data('id'));
+                        isEditMode = true;
+                    });
+
+                    $('.delete-category').on('click', function () {
+                        var categoryId = $(this).data('id');
+                        $.ajax({
+                            type: "POST",
+                            url: '@Url.Action("DeleteCategory", "Home")',
+                            data: JSON.stringify({ categoryId: categoryId }),
+                            contentType: "application/json; charset=utf-8",
+                            dataType: "json",
+                            success: function (result) {
+                                if (result.success) {
+                                    $('#category-' + categoryId).remove();
+                                } else {
+                                    alert("Failed to delete category. Please try again.");
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                console.error("Error: " + xhr.responseText);
+                                alert("An error occurred while deleting the category.");
+                            }
+                        });
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error: " + xhr.responseText);
+                }
+            });
+        }
+
+        loadCategoryList();
+    });
+</script>
